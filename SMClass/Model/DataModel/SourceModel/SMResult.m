@@ -7,7 +7,14 @@
 //
 
 #import "SMResult.h"
+#import "SMJoke.h"
 
 @implementation SMResult
+
++ (NSDictionary *)classNameMapper {
+    NSMutableDictionary *mapper = [NSMutableDictionary dictionaryWithDictionary:[super classNameMapper]];
+    [mapper setObject:NSStringFromClass([SMJoke class]) forKey:@"detail"];
+    return mapper;
+}
 
 @end

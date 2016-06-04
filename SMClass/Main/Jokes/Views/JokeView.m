@@ -31,6 +31,7 @@
         self.contentLabel = contentLabel;
         
         UIImageView *imageView = [[UIImageView alloc] init];
+        imageView.contentMode = UIViewContentModeScaleAspectFit;
         [self addSubview:imageView];
         self.imageView = imageView;
         
@@ -48,6 +49,7 @@
     
     [self.imageView autoAlignAxisToSuperviewAxis:ALAxisVertical];
     [self.imageView autoPinEdge:ALEdgeTop toEdge:ALEdgeBottom ofView:self.contentLabel];
+    [self.imageView autoSetDimensionsToSize:CGSizeMake(SMScreenWidth, SMScreenHeight - 64)];
 }
 
 #pragma mark - setter/getter
