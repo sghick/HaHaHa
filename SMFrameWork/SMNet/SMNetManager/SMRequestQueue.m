@@ -76,7 +76,7 @@
         [self.requests removeLastObject];
         return request;
     }
-    SMLog(@"request队列已经空空如也了，没有对象能再出列了！");
+    NSLog(@"request队列已经空空如也了，没有对象能再出列了！");
     return nil;
 }
 

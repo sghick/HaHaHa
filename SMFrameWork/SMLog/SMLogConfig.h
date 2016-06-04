@@ -10,7 +10,6 @@
 #define Demo_SMLog_SMLogConfig_h
 
 #import "SMLogSys.h"
-#import "SMConfig.h"
 
 #ifndef __ON__
 #define __ON__  (1)
@@ -22,7 +21,7 @@
 
 #warning 上线前关闭
 // 总开关 (上线自动关闭所有SMLog)
-#define __DUBUG__               ( __SM_DEBUG__ )
+#define __DUBUG__               ( __ON__ )
 
 // 输出到控制台
 #define __OUT_CMD__             ( __ON__ )

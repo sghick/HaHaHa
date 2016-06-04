@@ -48,7 +48,7 @@ static NSString *kRequestJokeListInBackground1 = @"kRequestJokeListInBackground1
 #pragma mark - request - responds
 - (void)finishedAction:(SMUrlRequest *)request {
     if ([kRequestJokeList1 isEqualToString:request.key]) {
-        SMResult *result = request.responseParserObject;
+        SMResult *result = [SMResult instanceWithDictionary:request.responseDictionary];
         int count = [self.dao insertJokes:result.detail];
         SMLog(@"请求到%zi条, 新增数据%d条",result.detail.count, count);
         if ([self.delegate respondsToSelector:@selector(respondsJokesCount:curPage:)]) {
@@ -56,7 +56,7 @@ static NSString *kRequestJokeListInBackground1 = @"kRequestJokeListInBackground1
         }
     }
     if ([kRequestJokeListInBackground1 isEqualToString:request.key]) {
-        SMResult *result = request.responseParserObject;
+        SMResult *result = [SMResult instanceWithDictionary:request.responseDictionary];
         int count = [self.dao insertJokes:result.detail];
         SMLog(@"请求到%zi条, 新增数据%d条",result.detail.count, count);
         if ([self.delegate respondsToSelector:@selector(respondsJokeListInBackgroundCount:curPage:)]) {

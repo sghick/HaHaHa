@@ -7,6 +7,9 @@
 //
 
 #import "SMUrlRequest.h"
+#import <CommonCrypto/CommonDigest.h>
+
+#define __SMToString(a...) ([NSString stringWithFormat:a])
 
 @implementation SMUrlRequestParamFile
 
@@ -90,14 +93,12 @@ static NSString *docListStr = @"";
 }
 
 - (void)clearResponse {
-    _responseData = nil;
-    _responseDictionary = nil;
     _responseErrorCode = nil;
     _responseErrorMsg = nil;
     _responseObject = nil;
-    _responseString = nil;
-    _responseParserObject = nil;
-    _responseParserCacheObject = nil;
+    _responseData = nil;
+    _responseDictionary = nil;
+    _responseArray = nil;
 }
 
 /**
@@ -111,7 +112,7 @@ static NSString *docListStr = @"";
 - (void)setResponseObject:(id)responseObject {
     _responseObject = responseObject;
     if (self.useCache) {
-        NSString *filePath = [self.cachefileDoc stringByAppendingPathComponent:SMToString(@"%@.dat", self.key)];
+        NSString *filePath = [self.cachefileDoc stringByAppendingPathComponent:__SMToString(@"%@.dat", self.key)];
         NSFileManager *manager = [[NSFileManager alloc] init];
         BOOL isDoc = YES;
         if (![manager fileExistsAtPath:self.cachefileDoc isDirectory:&isDoc]) {
@@ -138,31 +139,23 @@ static NSString *docListStr = @"";
 - (NSData *)responseData{
     if (_responseData) {
         // 什么也不做
-    } else if (_responseString){
-        _responseData = [NSJSONSerialization dataWithJSONObject:_responseString options:NSJSONWritingPrettyPrinted error:nil];
     } else if (_responseDictionary) {
-        _responseData = [NSJSONSerialization dataWithJSONObject:_responseDictionary options:NSJSONWritingPrettyPrinted error:nil];
+        _responseData = [NSKeyedArchiver archivedDataWithRootObject:_responseDictionary];
+    } else if (_responseArray) {
+        _responseData = [NSKeyedArchiver archivedDataWithRootObject:_responseArray];
     } else if (_responseObject) {
         if ([_responseObject isKindOfClass:[NSDictionary class]]) {
-            _responseDictionary = _responseObject;
-            _responseData = [self responseData];
+            _responseData = [NSJSONSerialization dataWithJSONObject:_responseObject options:NSJSONWritingPrettyPrinted error:nil];
+        } else if ([_responseObject isKindOfClass:[NSArray class]]) {
+            _responseData = [NSJSONSerialization dataWithJSONObject:_responseObject options:NSJSONWritingPrettyPrinted error:nil];
         } else if ([_responseObject isKindOfClass:[NSData class]]){
             _responseData = _responseObject;
         } else {
-            SMLog(@"%@:WPUrlRequest:从服务器中接收了不是NSData和NSDictionary对象以外的对象", kLogError);
+            NSLog(@"%@:WPUrlRequest:从服务器中接收了不是NSData,NSArray和NSDictionary对象以外的对象", @"error");
             _responseData = nil;
         }
     }
     return _responseData;
-}
-
-- (NSString *)responseString{
-    if (_responseString){
-        // 什么也不做
-    } else {
-        _responseString = [NSString stringWithFormat:@"%@", self.responseDictionary];
-    }
-    return _responseString;
 }
 
 - (NSDictionary *)responseDictionary{
@@ -174,24 +167,13 @@ static NSString *docListStr = @"";
     return _responseDictionary;
 }
 
-- (id)responseParserObject{
-    if (_responseDictionary) {
-        [self responseDictionary];
-    }
-    if (!self.parserMapper.count) {
-        return self.responseString;
-    }
-    Class mainModelClass = NSClassFromString([self.parserMapper objectForKey:parserReturnTypeMainModelOfKey]);
-    if (mainModelClass) {
-        SMModel *model = [[mainModelClass alloc] init];
-        NSMutableDictionary * newMapper = [NSMutableDictionary dictionaryWithDictionary:self.parserMapper];
-        [newMapper removeObjectForKey:parserReturnTypeMainModelOfKey];
-        [model setValuesWithDictionary:self.responseDictionary classNamesMapper:newMapper keysMapper:self.parserKeysMapper];
-        _responseParserObject = model;
+- (NSArray *)responseArray {
+    if (_responseArray) {
+        // 什么也不做
     } else {
-        _responseParserObject = [SMModel arrayWithDictionary:self.responseDictionary classNamesMapper:self.parserMapper keysMapper:self.parserKeysMapper];
+        _responseArray = [NSJSONSerialization JSONObjectWithData:self.responseData options:NSJSONReadingMutableContainers error:nil];
     }
-    return _responseParserObject;
+    return _responseArray;
 }
 
 - (NSString *)requestLocalPathExtension {
@@ -199,6 +181,20 @@ static NSString *docListStr = @"";
         _requestLocalPathExtension = @"json";
     }
     return _requestLocalPathExtension;
+}
+
+#pragma mark - Utils
++ (NSString *)keyOfRequestUrl:(NSString *)url {
+    const char *str = [[@"_SMURL" stringByAppendingString:url] UTF8String];
+    if (str == NULL) {
+        str = "";
+    }
+    unsigned char r[CC_MD5_DIGEST_LENGTH];
+    CC_MD5(str, (CC_LONG)strlen(str), r);
+    NSString *filename = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                          r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]];
+    
+    return filename;
 }
 
 #pragma mark - cache 缓存
@@ -209,36 +205,52 @@ static NSString *docListStr = @"";
     return _cachefileDoc;
 }
 
-- (id)responseParserCacheObject {
-    if (_responseParserCacheObject) {
-        return _responseParserCacheObject;
-    }
-    NSDictionary *timeOutIndexDict = nil;
-    if (self.cacheTimeOut) {
-        // 读取缓存期限
-        NSString *timeOutIndexFilePath = [self.cachefileDoc stringByAppendingPathComponent:@"timeOutIndex.dat"];
-        timeOutIndexDict = [NSDictionary dictionaryWithContentsOfFile:timeOutIndexFilePath];
-    }
-    NSTimeInterval timeOut = ((NSNumber *)(timeOutIndexDict[self.key])).doubleValue;
-    BOOL isTimeOut = (timeOut < [NSDate timeIntervalSinceReferenceDate]);
-    if (!isTimeOut) {
-        NSString *filePath = [self.cachefileDoc stringByAppendingPathComponent:SMToString(@"%@.dat", self.key)];
-        NSError *error = nil;
-        _responseData = [NSData dataWithContentsOfFile:filePath options:NSDataReadingUncached error:&error];
-        if (_responseData && _responseData.length) {
-            return self.responseParserObject;
+- (NSData *)responseCacheData {
+    if (_responseCacheData) {
+        return _responseCacheData;
+    } else {
+        NSDictionary *timeOutIndexDict = nil;
+        if (self.cacheTimeOut) {
+            // 读取缓存期限
+            NSString *timeOutIndexFilePath = [self.cachefileDoc stringByAppendingPathComponent:@"timeOutIndex.dat"];
+            timeOutIndexDict = [NSDictionary dictionaryWithContentsOfFile:timeOutIndexFilePath];
         }
+        NSTimeInterval timeOut = ((NSNumber *)(timeOutIndexDict[self.key])).doubleValue;
+        BOOL isTimeOut = (timeOut < [NSDate timeIntervalSinceReferenceDate]);
+        if (!isTimeOut) {
+            NSString *filePath = [self.cachefileDoc stringByAppendingPathComponent:__SMToString(@"%@.dat", self.key)];
+            NSError *error = nil;
+            _responseData = [NSData dataWithContentsOfFile:filePath options:NSDataReadingUncached error:&error];
+        }
+        return _responseData;
     }
-    return nil;
+}
+
+- (NSDictionary *)responseCacheDictionary {
+    if (_responseCacheDictionary) {
+        // 什么也不做
+    } else {
+        _responseCacheDictionary = [NSJSONSerialization JSONObjectWithData:self.responseCacheData options:NSJSONReadingMutableContainers error:nil];
+    }
+    return _responseCacheDictionary;
+}
+
+- (NSArray *)responseCacheArray {
+    if (_responseCacheArray) {
+        // 什么也不做
+    } else {
+        _responseCacheArray = [NSJSONSerialization JSONObjectWithData:self.responseCacheData options:NSJSONReadingMutableContainers error:nil];
+    }
+    return _responseCacheArray;
 }
 
 - (void)clearCache {
-    NSString *filePath = [self.cachefileDoc stringByAppendingPathComponent:SMToString(@"%@.dat", self.key)];
+    NSString *filePath = [self.cachefileDoc stringByAppendingPathComponent:__SMToString(@"%@.dat", self.key)];
     NSFileManager *manager = [[NSFileManager alloc] init];
     NSError *error = nil;
     BOOL success = [manager removeItemAtPath:filePath error:&error];
     if (!success) {
-        SMLog(@"删除缓存文件失败:\n\t%@\n\t%@", filePath, error);
+        NSLog(@"删除缓存文件失败:\n\t%@\n\t%@", filePath, error);
     } else if (self.cacheTimeOut > 0) {
         // 删除缓存期限
         NSString *timeOutIndexFilePath = [self.cachefileDoc stringByAppendingPathComponent:@"timeOutIndex.dat"];
@@ -260,11 +272,11 @@ static NSString *docListStr = @"";
             BOOL success = [manager removeItemAtPath:doc error:&error];
             count += success;
             if (!success) {
-                SMLog(@"删除缓存文件夹失败:\n\t%@\n\t%@", doc, error);
+                NSLog(@"删除缓存文件夹失败:\n\t%@\n\t%@", doc, error);
             }
         }
     }
-    SMLog(@"成功清除缓存 %d 处", count);
+    NSLog(@"成功清除缓存 %d 处", count);
     docListStr = @"";
 }
 

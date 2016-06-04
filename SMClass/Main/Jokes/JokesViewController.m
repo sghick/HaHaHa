@@ -10,7 +10,6 @@
 #import "JokeBll.h"
 #import "SMResult.h"
 #import "SMJoke.h"
-#import "UITableView+SM.h"
 #import "JokeDetailViewController.h"
 #import "SMNetManager.h"
 
@@ -221,7 +220,6 @@ static NSString *identifier = @"identifier";
         _tableView = [[SMTableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
         _tableView.dataSource = self;
         _tableView.delegate = self;
-        [_tableView setExtraCellLineHidden];
     }
     return _tableView;
 }

@@ -9,6 +9,7 @@
 #import "JokeView.h"
 #import "UIImageView+WebCache.h"
 #import "SMJoke.h"
+#import "PureLayout.h"
 
 @interface JokeView ()
 
@@ -41,27 +42,12 @@
 - (void)updateConstraints {
     [super updateConstraints];
     // 自动布局
-    NSDictionary * views = NSDictionaryOfVariableBindings(_contentLabel, _imageView);
-    [UIView setTranslatesAutoresizingMaskIntoConstraintsWithViews:views flag:NO];
-    NSDictionary *metrics = @{
-                              @"margin":SMToString(@"%f", 20*SMWidthScale),
-                              @"top":SMToString(@"%f", 64.0f)
-                              };
-    // 横向1
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-margin-[_contentLabel]-margin-|"
-                                                                      options:NSLayoutFormatDirectionLeadingToTrailing
-                                                                      metrics:metrics
-                                                                        views:views]];
-    // 横向2
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[_imageView]"
-                                                                      options:NSLayoutFormatDirectionLeadingToTrailing
-                                                                      metrics:metrics
-                                                                        views:views]];
-    // 纵向1
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-top-[_contentLabel][_imageView]"
-                                                                      options:NSLayoutFormatAlignAllCenterX
-                                                                      metrics:metrics
-                                                                        views:views]];
+    [self.contentLabel autoPinEdgeToSuperviewEdge:ALEdgeTop withInset:64];
+    [self.contentLabel autoAlignAxisToSuperviewAxis:ALAxisVertical];
+    [self.contentLabel autoSetDimension:ALDimensionWidth toSize:SMScreenWidth - 40*SMWidthScale];
+    
+    [self.imageView autoAlignAxisToSuperviewAxis:ALAxisVertical];
+    [self.imageView autoPinEdge:ALEdgeTop toEdge:ALEdgeBottom ofView:self.contentLabel];
 }
 
 #pragma mark - setter/getter

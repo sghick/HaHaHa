@@ -7,13 +7,11 @@
 //
 
 #import "SMAFNClient.h"
-#import "SMLog.h"
-#import "UIHeader.h"
 
 @implementation SMAFNClient
 
 - (instancetype)init {
-    NSAssert2(YES, @"%@:本类为单例类，请调用-[%@ sharedClient]", kLogError, NSStringFromClass([self class]));
+    NSLog(@"为单例类，请调用-[%@ sharedClient]", NSStringFromClass([self class]));
     return nil;
 }
 
@@ -36,21 +34,21 @@
                 case AFNetworkReachabilityStatusReachableViaWWAN:
                     break;
                 case AFNetworkReachabilityStatusReachableViaWiFi:
-                    SMLog(@"WiFi网络已连接");
+                    NSLog(@"WiFi网络已连接");
                     break;
                 case AFNetworkReachabilityStatusNotReachable:
-                    SMLog(@"网络连接失败");
+                    NSLog(@"网络连接失败");
                     break;
                     
                 default:
                     break;
             }
-            SMLog(@"%@", name);
+            NSLog(@"%@", name);
             NSDictionary *userInfo = @{
                                        @"status":[NSNumber numberWithInteger:status],
                                        @"name":name
                                        };
-            [SMNotiCenter postNotificationName:SMAFNClientNetStateDidChangeNotification object:nil userInfo:userInfo];
+            [[NSNotificationCenter defaultCenter] postNotificationName:SMAFNClientNetStateDidChangeNotification object:nil userInfo:userInfo];
         }];
         [sharedClient.reachabilityManager startMonitoring];
     });
@@ -73,6 +71,7 @@
 //    sharedClient.responseSerializer.acceptableContentTypes = [NSSet setWithObjects:@"multipart/form-data", @"application/json", @"text/json", @"text/javascript",@"text/html", nil];
     
 #warning:测试时用
+#define __SM_DEBUG__ (1)
     if ( __SM_DEBUG__ ) {
         // 设置请求超时间隔
         sharedClient.requestSerializer.timeoutInterval = 10;

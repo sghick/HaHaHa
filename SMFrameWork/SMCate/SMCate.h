@@ -10,9 +10,9 @@
 #define Demo_SMFrameWork_SMCate_h
 
 #import "UIView+SMFrame.h"
-#import "UIView+SM.h"
 #import "NSObject+SM.h"
 #import "NSString+SM.h"
 #import "UIDevice+SM.h"
+#import "UITableView+SM.h"
 
 #endif
